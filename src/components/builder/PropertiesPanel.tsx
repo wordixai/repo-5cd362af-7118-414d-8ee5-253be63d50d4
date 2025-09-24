@@ -30,14 +30,62 @@ export function PropertiesPanel() {
     }
   };
 
+  const getSelectOptions = (key: string, elementType?: string) => {
+    switch (key) {
+      case 'variant':
+        if (elementType === 'button') {
+          return [
+            { value: 'default', label: 'Default' },
+            { value: 'destructive', label: 'Destructive' },
+            { value: 'outline', label: 'Outline' },
+            { value: 'secondary', label: 'Secondary' },
+            { value: 'ghost', label: 'Ghost' },
+            { value: 'link', label: 'Link' }
+          ];
+        }
+        break;
+
+      case 'direction':
+        return [
+          { value: 'vertical', label: 'Vertical' },
+          { value: 'horizontal', label: 'Horizontal' }
+        ];
+
+      case 'type':
+        if (elementType === 'input') {
+          return [
+            { value: 'text', label: 'Text' },
+            { value: 'email', label: 'Email' },
+            { value: 'password', label: 'Password' },
+            { value: 'number', label: 'Number' }
+          ];
+        }
+        break;
+
+      case 'orientation':
+        return [
+          { value: 'horizontal', label: 'Horizontal' },
+          { value: 'vertical', label: 'Vertical' }
+        ];
+    }
+
+    return [];
+  };
+
   const renderPropertyEditor = (key: string, value: any, type: string = 'text') => {
+    // Ensure value is not undefined or null
+    const safeValue = value ?? '';
+
     switch (type) {
       case 'select':
         const options = getSelectOptions(key, selectedElement?.type);
         return (
-          <Select value={value} onValueChange={(newValue) => updateProperty(key, newValue)}>
+          <Select 
+            value={String(safeValue)} 
+            onValueChange={(newValue) => updateProperty(key, newValue)}
+          >
             <SelectTrigger>
-              <SelectValue />
+              <SelectValue placeholder="Select option..." />
             </SelectTrigger>
             <SelectContent>
               {options.map((option) => (
@@ -52,9 +100,10 @@ export function PropertiesPanel() {
       case 'textarea':
         return (
           <Textarea
-            value={value}
+            value={String(safeValue)}
             onChange={(e) => updateProperty(key, e.target.value)}
             rows={3}
+            placeholder="Enter text..."
           />
         );
 
@@ -62,15 +111,16 @@ export function PropertiesPanel() {
         return (
           <Input
             type="number"
-            value={value}
+            value={safeValue === '' ? '' : Number(safeValue)}
             onChange={(e) => updateProperty(key, parseInt(e.target.value) || 0)}
+            placeholder="0"
           />
         );
 
       case 'boolean':
         return (
           <Switch
-            checked={value}
+            checked={Boolean(safeValue)}
             onCheckedChange={(checked) => updateProperty(key, checked)}
           />
         );
@@ -78,8 +128,9 @@ export function PropertiesPanel() {
       default:
         return (
           <Input
-            value={value}
+            value={String(safeValue)}
             onChange={(e) => updateProperty(key, e.target.value)}
+            placeholder="Enter value..."
           />
         );
     }
@@ -148,6 +199,15 @@ export function PropertiesPanel() {
           ...common
         ];
 
+      case 'separator':
+        return [
+          { key: 'orientation', label: 'Orientation', type: 'select' },
+          ...common
+        ];
+
+      case 'container':
+        return common;
+
       default:
         return common;
     }
@@ -167,6 +227,8 @@ export function PropertiesPanel() {
       </div>
     );
   }
+
+  const propertyFields = getPropertyFields();
 
   return (
     <div className="w-80 bg-sidebar border-l border-sidebar-border">
@@ -193,64 +255,46 @@ export function PropertiesPanel() {
               <CardTitle className="text-sm">Element Properties</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {getPropertyFields().map((field) => (
-                <div key={field.key} className="space-y-2">
-                  <Label htmlFor={field.key} className="text-xs font-medium">
-                    {field.label}
-                  </Label>
-                  {renderPropertyEditor(
-                    field.key,
-                    selectedElement.props[field.key],
-                    field.type
-                  )}
+              {propertyFields.map((field) => {
+                const currentValue = selectedElement.props[field.key];
+                
+                return (
+                  <div key={field.key} className="space-y-2">
+                    <Label htmlFor={field.key} className="text-xs font-medium">
+                      {field.label}
+                    </Label>
+                    {renderPropertyEditor(
+                      field.key,
+                      currentValue,
+                      field.type
+                    )}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+
+          {/* Element Info Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Element Info</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="text-xs">
+                <span className="font-medium">ID:</span> {selectedElement.id}
+              </div>
+              <div className="text-xs">
+                <span className="font-medium">Type:</span> {selectedElement.type}
+              </div>
+              {selectedElement.parent && (
+                <div className="text-xs">
+                  <span className="font-medium">Parent:</span> {selectedElement.parent}
                 </div>
-              ))}
+              )}
             </CardContent>
           </Card>
         </div>
       </ScrollArea>
     </div>
   );
-}
-
-function getSelectOptions(key: string, elementType?: string) {
-  switch (key) {
-    case 'variant':
-      if (elementType === 'button') {
-        return [
-          { value: 'default', label: 'Default' },
-          { value: 'destructive', label: 'Destructive' },
-          { value: 'outline', label: 'Outline' },
-          { value: 'secondary', label: 'Secondary' },
-          { value: 'ghost', label: 'Ghost' },
-          { value: 'link', label: 'Link' }
-        ];
-      }
-      break;
-
-    case 'direction':
-      return [
-        { value: 'vertical', label: 'Vertical' },
-        { value: 'horizontal', label: 'Horizontal' }
-      ];
-
-    case 'type':
-      if (elementType === 'input') {
-        return [
-          { value: 'text', label: 'Text' },
-          { value: 'email', label: 'Email' },
-          { value: 'password', label: 'Password' },
-          { value: 'number', label: 'Number' }
-        ];
-      }
-      break;
-
-    case 'orientation':
-      return [
-        { value: 'horizontal', label: 'Horizontal' },
-        { value: 'vertical', label: 'Vertical' }
-      ];
-  }
-
-  return [];
 }
