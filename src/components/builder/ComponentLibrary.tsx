@@ -14,7 +14,8 @@ import {
   Layout,
   Grid3X3,
   Layers,
-  AlignLeft
+  AlignLeft,
+  GripVertical
 } from 'lucide-react';
 
 const componentCategories = [
@@ -54,25 +55,25 @@ const componentCategories = [
         type: 'container',
         label: 'Container',
         icon: Square,
-        defaultProps: { className: 'p-4 border-2 border-dashed border-gray-300 rounded min-h-24' }
+        defaultProps: { className: 'p-4 border-2 border-dashed border-gray-300 rounded min-h-24', acceptsChildren: true }
       },
       {
         type: 'card',
         label: 'Card',
         icon: Layout,
-        defaultProps: { title: 'Card Title', content: 'Card content goes here.' }
+        defaultProps: { title: 'Card Title', content: 'Card content goes here.', acceptsChildren: true }
       },
       {
         type: 'grid',
         label: 'Grid',
         icon: Grid3X3,
-        defaultProps: { columns: 2, gap: 4, className: 'grid grid-cols-2 gap-4 p-4 border border-dashed rounded' }
+        defaultProps: { columns: 2, gap: 4, className: 'grid grid-cols-2 gap-4 p-4 border border-dashed rounded', acceptsChildren: true }
       },
       {
         type: 'stack',
         label: 'Stack',
         icon: Layers,
-        defaultProps: { direction: 'vertical', gap: 2, className: 'flex flex-col gap-2 p-4 border border-dashed rounded' }
+        defaultProps: { direction: 'vertical', gap: 2, className: 'flex flex-col gap-2 p-4 border border-dashed rounded', acceptsChildren: true }
       }
     ]
   },
@@ -99,19 +100,36 @@ export function ComponentLibrary() {
   const { dispatch } = useBuilder();
   const [draggedComponent, setDraggedComponent] = useState<any>(null);
 
-  const handleDragStart = (component: any) => {
-    setDraggedComponent(component);
+  const handleDragStart = (e: React.DragEvent, component: any) => {
     const element = {
       id: `${component.type}_${Date.now()}`,
       type: component.type,
       props: component.defaultProps
     };
-    dispatch({ type: 'SET_DRAGGED_ELEMENT', element });
+    
+    setDraggedComponent(component);
+    dispatch({ type: 'START_DRAG', element, fromLibrary: true });
+    
+    // Set drag data
+    e.dataTransfer.setData('application/json', JSON.stringify(element));
+    e.dataTransfer.effectAllowed = 'copy';
+    
+    // Create custom drag preview
+    const dragPreview = e.currentTarget.cloneNode(true) as HTMLElement;
+    dragPreview.style.transform = 'rotate(5deg)';
+    dragPreview.style.opacity = '0.8';
+    dragPreview.style.pointerEvents = 'none';
+    document.body.appendChild(dragPreview);
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    e.dataTransfer.setDragImage(dragPreview, rect.width / 2, rect.height / 2);
+    
+    setTimeout(() => document.body.removeChild(dragPreview), 0);
   };
 
-  const handleDragEnd = () => {
+  const handleDragEnd = (e: React.DragEvent) => {
     setDraggedComponent(null);
-    dispatch({ type: 'SET_DRAGGED_ELEMENT', element: null });
+    dispatch({ type: 'END_DRAG' });
   };
 
   return (
@@ -134,12 +152,13 @@ export function ComponentLibrary() {
                   return (
                     <Card
                       key={component.type}
-                      className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+                      className="cursor-grab active:cursor-grabbing hover:shadow-md transition-all duration-200 hover:scale-105 group"
                       draggable
-                      onDragStart={() => handleDragStart(component)}
+                      onDragStart={(e) => handleDragStart(e, component)}
                       onDragEnd={handleDragEnd}
                     >
-                      <CardContent className="p-3 text-center">
+                      <CardContent className="p-3 text-center relative">
+                        <GripVertical className="w-3 h-3 absolute top-1 right-1 text-sidebar-foreground/30 group-hover:text-sidebar-foreground/60" />
                         <IconComponent className="w-6 h-6 mx-auto mb-2 text-sidebar-foreground" />
                         <span className="text-xs font-medium text-sidebar-foreground">
                           {component.label}

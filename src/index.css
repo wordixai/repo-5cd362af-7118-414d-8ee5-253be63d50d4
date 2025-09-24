@@ -110,3 +110,53 @@
 .code-editor {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
+
+/* Drag animations */
+.drag-ghost {
+  @apply opacity-50 transform rotate-2 scale-105;
+}
+
+.drag-over-before::before {
+  content: '';
+  @apply absolute top-0 left-0 right-0 h-0.5 bg-blue-500 z-20;
+}
+
+.drag-over-after::after {
+  content: '';
+  @apply absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 z-20;
+}
+
+.drag-over-inside {
+  @apply relative;
+}
+
+.drag-over-inside::before {
+  content: '';
+  @apply absolute inset-0 border-2 border-dashed border-blue-500 bg-blue-50/20 rounded z-20;
+}
+
+/* Smooth transitions for drag operations */
+.builder-element {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.builder-element.dragging {
+  @apply opacity-50 scale-95;
+}
+
+/* Enhanced hover effects */
+.component-card:hover {
+  @apply shadow-lg transform scale-105;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Drop zone highlight */
+.drop-zone-active {
+  @apply bg-blue-50 border-blue-300;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}

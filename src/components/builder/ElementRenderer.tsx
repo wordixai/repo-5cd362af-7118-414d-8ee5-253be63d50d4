@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { Move, GripVertical } from 'lucide-react';
+import { useState, useRef } from 'react';
 
 interface ElementRendererProps {
   element: BuilderElement;
@@ -12,6 +14,9 @@ interface ElementRendererProps {
 
 export function ElementRenderer({ element }: ElementRendererProps) {
   const { state, dispatch } = useBuilder();
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [dropPosition, setDropPosition] = useState<'before' | 'after' | 'inside' | null>(null);
+  const elementRef = useRef<HTMLDivElement>(null);
 
   const handleClick = (e: React.MouseEvent) => {
     if (!state.previewMode) {
@@ -32,18 +37,139 @@ export function ElementRenderer({ element }: ElementRendererProps) {
     }
   };
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.stopPropagation();
+    dispatch({ type: 'START_DRAG', element, fromLibrary: false });
+    e.dataTransfer.setData('application/json', JSON.stringify(element));
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragEnd = () => {
+    dispatch({ type: 'END_DRAG' });
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!state.dragState.isDragging || state.dragState.draggedElement?.id === element.id) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const rect = elementRef.current?.getBoundingClientRect();
+    if (rect) {
+      const y = e.clientY - rect.top;
+      const height = rect.height;
+      
+      // Determine drop position
+      let newDropPosition: 'before' | 'after' | 'inside' | null = null;
+      
+      // Check if element accepts children
+      const acceptsChildren = element.props.acceptsChildren || 
+        ['container', 'card', 'grid', 'stack'].includes(element.type);
+      
+      if (acceptsChildren && y > height * 0.25 && y < height * 0.75) {
+        newDropPosition = 'inside';
+      } else if (y <= height * 0.5) {
+        newDropPosition = 'before';
+      } else {
+        newDropPosition = 'after';
+      }
+      
+      setIsDragOver(true);
+      setDropPosition(newDropPosition);
+      dispatch({ 
+        type: 'SET_DROP_TARGET', 
+        targetId: element.id, 
+        position: newDropPosition 
+      });
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!elementRef.current?.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+      setDropPosition(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setIsDragOver(false);
+    setDropPosition(null);
+    
+    if (state.dragState.draggedElement && state.dragState.draggedElement.id !== element.id) {
+      const draggedElement = state.dragState.draggedElement;
+      
+      if (dropPosition === 'inside') {
+        // Move into this element
+        dispatch({
+          type: 'MOVE_ELEMENT',
+          elementId: draggedElement.id,
+          newParentId: element.id
+        });
+      } else if (dropPosition === 'before' || dropPosition === 'after') {
+        // Move before/after this element
+        const siblings = state.elements.filter(el => el.parent === element.parent);
+        const currentIndex = siblings.findIndex(el => el.id === element.id);
+        const newIndex = dropPosition === 'before' ? currentIndex : currentIndex + 1;
+        
+        dispatch({
+          type: 'MOVE_ELEMENT',
+          elementId: draggedElement.id,
+          newParentId: element.parent,
+          newIndex
+        });
+      }
+    }
+    
+    dispatch({ type: 'END_DRAG' });
+  };
+
   const isSelected = state.selectedElement === element.id;
   const isHovered = state.hoveredElement === element.id;
 
   const baseClassName = state.previewMode 
     ? '' 
     : cn(
-        'builder-element',
+        'builder-element relative group',
         isSelected && 'selected',
         isHovered && !isSelected && 'hover:border-purple-300'
       );
 
-  const childElements = state.elements.filter(el => el.parent === element.id);
+  const childElements = state.elements
+    .filter(el => el.parent === element.id)
+    .sort((a, b) => (a.index || 0) - (b.index || 0));
+
+  const renderDropIndicator = () => {
+    if (!isDragOver || !dropPosition) return null;
+    
+    const indicatorClass = cn(
+      'absolute z-20 pointer-events-none',
+      dropPosition === 'before' && 'top-0 left-0 right-0 h-0.5 bg-blue-500',
+      dropPosition === 'after' && 'bottom-0 left-0 right-0 h-0.5 bg-blue-500',
+      dropPosition === 'inside' && 'inset-0 border-2 border-dashed border-blue-500 bg-blue-50/20 rounded'
+    );
+    
+    return <div className={indicatorClass} />;
+  };
+
+  const renderDragHandle = () => {
+    if (state.previewMode || !isSelected) return null;
+    
+    return (
+      <div
+        className="absolute -top-2 -left-2 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center cursor-move z-30 opacity-0 group-hover:opacity-100 transition-opacity"
+        draggable
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <Move className="w-3 h-3 text-white" />
+      </div>
+    );
+  };
 
   const renderElement = () => {
     switch (element.type) {
@@ -94,6 +220,11 @@ export function ElementRenderer({ element }: ElementRendererProps) {
             className={cn(baseClassName, element.props.className)}
             style={element.props.style}
           >
+            {childElements.length === 0 && !state.previewMode && (
+              <div className="text-center text-muted-foreground py-8">
+                <div className="text-sm">Drop components here</div>
+              </div>
+            )}
             {childElements.map((child) => (
               <ElementRenderer key={child.id} element={child} />
             ))}
@@ -111,6 +242,11 @@ export function ElementRenderer({ element }: ElementRendererProps) {
             </CardHeader>
             <CardContent>
               <p>{element.props.content}</p>
+              {childElements.length === 0 && !state.previewMode && (
+                <div className="text-center text-muted-foreground py-4 mt-4 border-2 border-dashed border-gray-200 rounded">
+                  <div className="text-sm">Drop components here</div>
+                </div>
+              )}
               {childElements.map((child) => (
                 <ElementRenderer key={child.id} element={child} />
               ))}
@@ -128,6 +264,11 @@ export function ElementRenderer({ element }: ElementRendererProps) {
               gap: `${element.props.gap * 0.25}rem`
             }}
           >
+            {childElements.length === 0 && !state.previewMode && (
+              <div className="col-span-full text-center text-muted-foreground py-8">
+                <div className="text-sm">Drop components here</div>
+              </div>
+            )}
             {childElements.map((child) => (
               <ElementRenderer key={child.id} element={child} />
             ))}
@@ -147,6 +288,11 @@ export function ElementRenderer({ element }: ElementRendererProps) {
               gap: `${element.props.gap * 0.25}rem`
             }}
           >
+            {childElements.length === 0 && !state.previewMode && (
+              <div className="text-center text-muted-foreground py-8">
+                <div className="text-sm">Drop components here</div>
+              </div>
+            )}
             {childElements.map((child) => (
               <ElementRenderer key={child.id} element={child} />
             ))}
@@ -189,10 +335,17 @@ export function ElementRenderer({ element }: ElementRendererProps) {
 
   return (
     <div
+      ref={elementRef}
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className="relative"
     >
+      {renderDragHandle()}
+      {renderDropIndicator()}
       {renderElement()}
     </div>
   );
