@@ -97,7 +97,7 @@ const componentCategories = [
 ];
 
 export function ComponentLibrary() {
-  const { dispatch } = useBuilder(
+  const { dispatch } = useBuilder();
   const [draggedComponent, setDraggedComponent] = useState<any>(null);
 
   const handleDragStart = (e: React.DragEvent, component: any) => {
