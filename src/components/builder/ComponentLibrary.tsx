@@ -172,7 +172,7 @@ export function ComponentLibrary() {
                 })}
               </div>
               {category !== componentCategories[componentCategories.length - 1] && (
-                <Separator className="" />
+                <Separator />
               )}
             </div>
           ))}
