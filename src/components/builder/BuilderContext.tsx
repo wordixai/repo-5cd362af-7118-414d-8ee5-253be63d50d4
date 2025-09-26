@@ -215,7 +215,7 @@ export function BuilderProvider({ children }: { children: ReactNode }) {
 export function useBuilder() {
   const context = useContext(BuilderContext);
   if (!context) {
-    throw new Error('useBuilder must be used within a BuilderProvider');
+    throw new Error('useBuilder must be used within a BuilderProvi');
   }
   return context;
 }
