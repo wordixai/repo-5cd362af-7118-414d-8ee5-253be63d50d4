@@ -137,7 +137,7 @@ export function ComponentLibrary() {
       <div className="p-4 border-b border-sidebar-border">
         <h2 className="text-lg font-semibold text-sidebar-foreground">Components</h2>
         <p className="text-sm text-sidebar-foreground/70">Drag components to the canvas</p>
-      </div>
+      </div
       
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-6">
