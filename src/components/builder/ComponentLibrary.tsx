@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useBuilder } from './BuilderContext';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { 
@@ -124,10 +123,14 @@ export function ComponentLibrary() {
     const rect = e.currentTarget.getBoundingClientRect();
     e.dataTransfer.setDragImage(dragPreview, rect.width / 2, rect.height / 2);
     
-    setTimeout(() => document.body.removeChild(dragPreview), 0);
+    setTimeout(() => {
+      if (document.body.contains(dragPreview)) {
+        document.body.removeChild(dragPreview);
+      }
+    }, 0);
   };
 
-  const handleDragEnd = (e: React.DragEvent) => {
+  const handleDragEnd = () => {
     setDraggedComponent(null);
     dispatch({ type: 'END_DRAG' });
   };
@@ -137,7 +140,7 @@ export function ComponentLibrary() {
       <div className="p-4 border-b border-sidebar-border">
         <h2 className="text-lg font-semibold text-sidebar-foreground">Components</h2>
         <p className="text-sm text-sidebar-foreground/70">Drag components to the canvas</p>
-      </div
+      </div>
       
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-6">
